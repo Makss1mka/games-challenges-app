@@ -1,0 +1,15 @@
+services:
+  gateway:
+    build: .
+    container_name: api-gateway
+    env_file:
+      - .env
+      - ../../.env
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true

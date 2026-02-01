@@ -1,0 +1,14 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    env_file:
+      - .env
+    ports:
+      - "15672:15672"
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true

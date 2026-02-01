@@ -1,0 +1,42 @@
+services:
+  users-api:
+    # ports:
+    #   - ":9999:9999"
+    volumes:
+      - ./services/users:/app
+
+  games-api:
+    # ports:
+    #   - ":9999:9999"
+    volumes:
+      - ./services/games:/app
+
+  challenges-api:
+    # ports:
+    #   - ":9999:9999"
+    volumes:
+      - ./services/challenges:/app
+
+  social-api:
+    # ports:
+    #   - ":9999:9999"
+    volumes:
+      - ./services/social:/app
+
+  recommendations-api:
+    # ports:
+    #   - ":9999:9999"
+    volumes:
+      - ./services/recommendations:/app
+
+  gateway:
+    # ports:
+    #   - ":9999:9999"
+    volumes:
+      - ./infra/gateway:/app
+
+  frontend:
+    # ports:
+    #   - ":9999:9999"
+    volumes:
+      - ./frontend:/app

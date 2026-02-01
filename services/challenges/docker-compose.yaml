@@ -1,0 +1,56 @@
+services:
+  challenges-db:
+    image: postgres:16
+    container_name: challenges-db
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 5s
+      retries: 5
+    networks:
+      - challenges-private
+
+  challenges-redis:
+    image: redis:7
+    container_name: challenges-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+    networks:
+      - challenges-private
+
+  challenges-migrations:
+    image: challenges-api
+    container_name: challenges-migrations
+    command: ["dotnet", "ef", "database", "update"]
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      challenges-db:
+        condition: service_healthy
+    networks:
+      - challenges-private
+    restart: "no"
+
+  challenges-api:
+    build: .
+    container_name: challenges-api
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      challenges-migrations:
+        condition: service_completed_successfully
+      challenges-redis:
+        condition: service_healthy
+    networks:
+      - backend
+      - challenges-private
+
+networks:
+  challenges-private:
+  backend:
+    external: true

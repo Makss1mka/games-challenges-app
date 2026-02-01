@@ -1,0 +1,17 @@
+networks:
+  backend:
+    name: backend
+    driver: bridge
+
+include:
+  - infra/rabbitmq/docker-compose.yml
+  - infra/gateway/docker-compose.yml
+  - infra/nginx/docker-compose.yml
+
+  - services/users/docker-compose.yml
+  - services/games/docker-compose.yml
+  - services/challenges/docker-compose.yml
+  - services/social/docker-compose.yml
+  - services/recommendations/docker-compose.yml
+
+  - frontend/docker-compose.yml

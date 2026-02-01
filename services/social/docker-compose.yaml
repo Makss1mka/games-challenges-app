@@ -1,0 +1,56 @@
+services:
+  social-db:
+    image: postgres:16
+    container_name: social-db
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 5s
+      retries: 5
+    networks:
+      - social-private
+
+  social-redis:
+    image: redis:7
+    container_name: social-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+    networks:
+      - social-private
+
+  social-migrations:
+    image: social-api
+    container_name: social-migrations
+    command: ["alembic", "upgrade", "head"]
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      social-db:
+        condition: service_healthy
+    networks:
+      - social-private
+    restart: "no"
+
+  social-api:
+    build: .
+    container_name: social-api
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      social-migrations:
+        condition: service_completed_successfully
+      social-redis:
+        condition: service_healthy
+    networks:
+      - backend
+      - social-private
+
+networks:
+  social-private:
+  backend:
+    external: true

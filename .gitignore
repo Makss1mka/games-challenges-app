@@ -1,0 +1,70 @@
+#
+# ENV / SECRETS
+#
+.env
+.env.*
+!.env.template
+
+
+#
+# Docker
+#
+docker-compose.override.yaml
+**/docker-compose.override.yaml
+*.log
+docker-data/
+volumes/
+
+
+#
+# Python
+#
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.env/
+.venv/
+venv/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+
+
+#
+# .NET / C#
+#
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+
+
+#
+# Frontend
+#
+node_modules/
+dist/
+build/
+.vite/
+.next/
+out/
+
+
+#
+# IDE
+#
+.idea/
+.vscode/
+*.swp
+*.swo
+
+
+#
+# OS
+#
+.DS_Store
+Thumbs.db

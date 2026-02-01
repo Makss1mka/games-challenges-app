@@ -1,0 +1,56 @@
+services:
+  recommendations-db:
+    image: postgres:16
+    container_name: recommendations-db
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 5s
+      retries: 5
+    networks:
+      - recommendations-private
+
+  recommendations-redis:
+    image: redis:7
+    container_name: recommendations-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+    networks:
+      - recommendations-private
+
+  recommendations-migrations:
+    image: recommendations-api
+    container_name: recommendations-migrations
+    command: ["alembic", "upgrade", "head"]
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      recommendations-db:
+        condition: service_healthy
+    networks:
+      - recommendations-private
+    restart: "no"
+
+  recommendations-api:
+    build: .
+    container_name: recommendations-api
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      recommendations-migrations:
+        condition: service_completed_successfully
+      recommendations-redis:
+        condition: service_healthy
+    networks:
+      - backend
+      - recommendations-private
+
+networks:
+  recommendations-private:
+  backend:
+    external: true

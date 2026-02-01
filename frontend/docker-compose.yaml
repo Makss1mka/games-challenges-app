@@ -1,0 +1,14 @@
+services:
+  frontend:
+    build: .
+    container_name: frontend
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true

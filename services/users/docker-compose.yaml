@@ -1,0 +1,56 @@
+services:
+  users-db:
+    image: postgres:16
+    container_name: users-db
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 5s
+      retries: 5
+    networks:
+      - users-private
+
+  users-redis:
+    image: redis:7
+    container_name: users-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+    networks:
+      - users-private
+
+  users-migrations:
+    image: users-api
+    container_name: users-migrations
+    command: ["dotnet", "ef", "database", "update"]
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      users-db:
+        condition: service_healthy
+    networks:
+      - users-private
+    restart: "no"
+
+  users-api:
+    build: .
+    container_name: users-api
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      users-migrations:
+        condition: service_completed_successfully
+      users-redis:
+        condition: service_healthy
+    networks:
+      - backend
+      - users-private
+
+networks:
+  users-private:
+  backend:
+    external: true

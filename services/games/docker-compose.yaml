@@ -1,0 +1,56 @@
+services:
+  games-db:
+    image: postgres:16
+    container_name: games-db
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 5s
+      retries: 5
+    networks:
+      - games-private
+
+  games-redis:
+    image: redis:7
+    container_name: games-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+    networks:
+      - games-private
+
+  games-migrations:
+    image: games-api
+    container_name: games-migrations
+    command: ["dotnet", "ef", "database", "update"]
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      games-db:
+        condition: service_healthy
+    networks:
+      - games-private
+    restart: "no"
+
+  games-api:
+    build: .
+    container_name: games-api
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      games-migrations:
+        condition: service_completed_successfully
+      games-redis:
+        condition: service_healthy
+    networks:
+      - backend
+      - games-private
+
+networks:
+  games-private:
+  backend:
+    external: true
