@@ -4,17 +4,28 @@
 .env
 .env.*
 !.env.template
+!.env.example
 
+# venvs
+.venv/
+venv/
+env/
+ENV/
 
 #
 # Docker
 #
+docker-compose.override.yml
 docker-compose.override.yaml
+**/docker-compose.override.yml
 **/docker-compose.override.yaml
-*.log
+
+# local docker volumes / data folders (project-specific)
 docker-data/
 volumes/
 
+# logs
+*.log
 
 #
 # Python
@@ -23,45 +34,56 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-.env/
-.venv/
-venv/
-pip-wheel-metadata/
+*.egg-info/
+.eggs/
 .pytest_cache/
 .mypy_cache/
-
+.ruff_cache/
+.cache/
 
 #
 # .NET / C#
 #
+# build output
 bin/
 obj/
+**/bin/
+**/obj/
+
+# user-specific / VS
 *.user
 *.suo
-*.cache
-*.dll
-*.pdb
+*.rsuser
+*.userosscache
+*.sln.docstates
 
+# Rider / ReSharper
+*.DotSettings.user
+
+# NuGet
+*.nupkg
 
 #
 # Frontend
 #
 node_modules/
+**/node_modules/
 dist/
 build/
 .vite/
 .next/
 out/
-
+coverage/
+*.tsbuildinfo
 
 #
 # IDE
 #
+.vs/
 .idea/
 .vscode/
 *.swp
 *.swo
-
 
 #
 # OS
