@@ -52,5 +52,3 @@ services:
 
 networks:
   users-private:
-  backend:
-    external: true

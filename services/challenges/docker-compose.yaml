@@ -21,20 +21,6 @@ services:
     networks:
       - challenges-private
 
-  challenges-migrations:
-    image: challenges-api
-    container_name: challenges-migrations
-    command: ["dotnet", "ef", "database", "update"]
-    env_file:
-      - .env
-      - ../../.env
-    depends_on:
-      challenges-db:
-        condition: service_healthy
-    networks:
-      - challenges-private
-    restart: "no"
-
   challenges-api:
     build: .
     container_name: challenges-api
@@ -42,8 +28,6 @@ services:
       - .env
       - ../../.env
     depends_on:
-      challenges-migrations:
-        condition: service_completed_successfully
       challenges-redis:
         condition: service_healthy
     networks:
@@ -52,5 +36,3 @@ services:
 
 networks:
   challenges-private:
-  backend:
-    external: true
