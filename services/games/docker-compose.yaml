@@ -52,5 +52,3 @@ services:
 
 networks:
   games-private:
-  backend:
-    external: true
