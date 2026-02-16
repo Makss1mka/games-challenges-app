@@ -52,5 +52,3 @@ services:
 
 networks:
   social-private:
-  backend:
-    external: true
