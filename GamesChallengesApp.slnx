@@ -1,11 +1,4 @@
 <Solution>
-  <Folder Name="/challenges/">
-    <Project Path="services/challenges/src/Challenges.Api/Challenges.Api.csproj" Id="2ee08c07-87de-47c2-a4c2-6f48b6ae5b8e" />
-    <Project Path="services/challenges/src/Challenges.Application/Challenges.Application.csproj" Id="6bb8e0ad-d057-4892-81aa-52c2644c3376" />
-    <Project Path="services/challenges/src/Challenges.Domain/Challenges.Domain.csproj" Id="67aefdfe-c2de-47a1-aa74-c228d0b3eb58" />
-    <Project Path="services/challenges/src/Challenges.Infrastructure/Challenges.Infrastructure.csproj" Id="68729e6a-4a46-405b-b932-007a4d8d57d3" />
-    <Project Path="services/challenges/src/Challenges.Tests/Challenges.Tests.csproj" Id="52a20bba-7fcd-4ca1-9205-cfe7874b1482" />
-  </Folder>
   <Folder Name="/games/">
     <Project Path="services/games/src/Games.Api/Games.Api.csproj" Id="fbbeb644-9938-44f6-827b-00c135493d11" />
     <Project Path="services/games/src/Games.Application/Games.Application.csproj" Id="0b0439a0-6d83-44df-8b9c-d69b8bc02e9b" />
