@@ -11,7 +11,7 @@ include:
   #- services/users/docker-compose.yaml
   #- services/games/docker-compose.yaml
   - services/challenges/docker-compose.yaml
-  #- services/social/docker-compose.yaml
+  - services/social/docker-compose.yaml
   #- services/recommendations/docker-compose.yaml
 
   #- frontend/docker-compose.yaml
