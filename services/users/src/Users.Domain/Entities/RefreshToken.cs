@@ -1,12 +1,11 @@
 ﻿namespace Users.Domain.Entities;
 
-/// <summary>Refresh token record (store only hash, never raw token).</summary>
 public sealed class RefreshToken
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
-    public string TokenHash { get; set; } = default!;
-    public DateTimeOffset ExpiresAt { get; set; }
-    public DateTimeOffset? RevokedAt { get; set; }
-    public DateTimeOffset CreatedAt { get; set; }
+    public User User { get; set; } = null!;
+    public string Token { get; set; } = null!;
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public DateTimeOffset? RevokedAtUtc { get; set; }
 }

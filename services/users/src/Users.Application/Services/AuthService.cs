@@ -1,149 +1,143 @@
-﻿using Shared.BuildingBlocks.Messaging;
-using Shared.Contracts.Events;
+﻿using Games.Api.Security;
+using System.Security.Claims;
 using Users.Application.Abstractions;
 using Users.Application.Models;
 using Users.Domain.Entities;
+using Users.Domain.Enums;
 
 namespace Users.Application.Services;
 
-/// <summary>Authentication use-cases (register/login/refresh/logout).</summary>
-public sealed class AuthService
+public sealed class AuthService(
+    IUsersRepository usersRepository,
+    IRefreshTokensRepository refreshTokensRepository,
+    IPasswordHasher passwordHasher,
+    IJwtTokenService jwtTokenService,
+    IRefreshTokenGenerator refreshTokenGenerator)
 {
-    private readonly IUsersRepository _users;
-    private readonly IRefreshTokensRepository _tokens;
-    private readonly IPasswordHasher _hasher;
-    private readonly IJwtTokenService _jwt;
-    private readonly IRefreshTokenGenerator _refreshGen;
-    private readonly IEventPublisher _publisher;
-
-    public AuthService(
-        IUsersRepository users,
-        IRefreshTokensRepository tokens,
-        IPasswordHasher hasher,
-        IJwtTokenService jwt,
-        IRefreshTokenGenerator refreshGen,
-        IEventPublisher publisher)
+    public async Task<AuthResponse> RegisterAsync(
+        RegisterRequest request,
+        CancellationToken cancellationToken = default)
     {
-        _users = users;
-        _tokens = tokens;
-        _hasher = hasher;
-        _jwt = jwt;
-        _refreshGen = refreshGen;
-        _publisher = publisher;
-    }
+        ValidateRegisterRequest(request);
 
-    /// <summary>Registers a new user and returns tokens.</summary>
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest req, CancellationToken ct)
-    {
-        var email = req.Email.Trim().ToLowerInvariant();
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var normalizedUsername = request.Username.Trim().ToLowerInvariant();
 
-        if (await _users.EmailExistsAsync(email, ct))
-            throw new InvalidOperationException("Email already exists.");
+        if (await usersRepository.GetByEmailAsync(normalizedEmail, cancellationToken) is not null)
+            throw new InvalidOperationException("Email is already registered.");
+
+        if (await usersRepository.GetByUsernameAsync(normalizedUsername, cancellationToken) is not null)
+            throw new InvalidOperationException("Username is already taken.");
 
         var user = new User
         {
             Id = Guid.NewGuid(),
-            Email = email,
-            Username = string.IsNullOrWhiteSpace(req.Username) ? null : req.Username.Trim(),
-            PasswordHash = _hasher.Hash(req.Password),
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow
+            Username = request.Username.Trim(),
+            NormalizedUsername = normalizedUsername,
+            Email = normalizedEmail,
+            PasswordHash = passwordHasher.Hash(request.Password),
+            Role = UserRole.User,
+            Status = UserStatus.Active,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
         };
 
-        await _users.AddAsync(user, ct);
-        await _users.SaveChangesAsync(ct);
+        await usersRepository.AddAsync(user, cancellationToken);
+        await usersRepository.SaveChangesAsync(cancellationToken);
 
-        // refresh token
-        var rawRefresh = _refreshGen.GenerateRawToken();
-        var refreshHash = _refreshGen.HashRawToken(rawRefresh);
-
-        var rt = new RefreshToken
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            TokenHash = refreshHash,
-            CreatedAt = DateTimeOffset.UtcNow,
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30)
-        };
-
-        await _tokens.AddAsync(rt, ct);
-        await _tokens.SaveChangesAsync(ct);
-
-        // publish event
-        await _publisher.PublishAsync(new UserRegistered(user.Id, user.Email, DateTimeOffset.UtcNow), ct);
-
-        var access = _jwt.CreateAccessToken(user);
-        return new AuthResponse(access, rawRefresh);
+        return await IssueTokensAsync(user, cancellationToken);
     }
 
-    /// <summary>Validates credentials and returns tokens.</summary>
-    public async Task<AuthResponse> LoginAsync(LoginRequest req, CancellationToken ct)
+    public async Task<AuthResponse> LoginAsync(
+        LoginRequest request,
+        CancellationToken cancellationToken = default)
     {
-        var email = req.Email.Trim().ToLowerInvariant();
-        var user = await _users.GetByEmailAsync(email, ct);
+        if (string.IsNullOrWhiteSpace(request.Login))
+            throw new InvalidOperationException("Login is required.");
 
-        if (user is null)
+        if (string.IsNullOrWhiteSpace(request.Password))
+            throw new InvalidOperationException("Password is required.");
+
+        var user = await usersRepository.GetByEmailOrUsernameAsync(request.Login.Trim(), cancellationToken)
+                   ?? throw new InvalidOperationException("Invalid credentials.");
+
+        if (!passwordHasher.Verify(request.Password, user.PasswordHash))
             throw new InvalidOperationException("Invalid credentials.");
 
-        if (!_hasher.Verify(req.Password, user.PasswordHash))
-            throw new InvalidOperationException("Invalid credentials.");
+        if (user.Status is not UserStatus.Active)
+            throw new InvalidOperationException("User is not active.");
 
-        var rawRefresh = _refreshGen.GenerateRawToken();
-        var refreshHash = _refreshGen.HashRawToken(rawRefresh);
+        return await IssueTokensAsync(user, cancellationToken);
+    }
 
-        var rt = new RefreshToken
+    public async Task<AuthResponse> RefreshAsync(
+        RefreshTokenRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            throw new InvalidOperationException("Refresh token is required.");
+
+        var existing = await refreshTokensRepository.GetActiveAsync(request.RefreshToken.Trim(), cancellationToken)
+                      ?? throw new InvalidOperationException("Refresh token is invalid.");
+
+        if (existing.ExpiresAtUtc <= DateTimeOffset.UtcNow)
+            throw new InvalidOperationException("Refresh token is expired.");
+
+        existing.RevokedAtUtc = DateTimeOffset.UtcNow;
+        await refreshTokensRepository.SaveChangesAsync(cancellationToken);
+
+        return await IssueTokensAsync(existing.User, cancellationToken);
+    }
+
+    public async Task RevokeAllAsync(
+        ClaimsPrincipal principal,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = principal.GetUserId();
+        await refreshTokensRepository.RevokeAllByUserIdAsync(userId, cancellationToken);
+        await refreshTokensRepository.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<AuthResponse> IssueTokensAsync(
+        User user,
+        CancellationToken cancellationToken)
+    {
+        var accessToken = jwtTokenService.GenerateAccessToken(user);
+        var refreshTokenValue = refreshTokenGenerator.Generate();
+        var expiresAtUtc = DateTimeOffset.UtcNow.AddDays(30);
+
+        var refreshToken = new RefreshToken
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
-            TokenHash = refreshHash,
-            CreatedAt = DateTimeOffset.UtcNow,
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30)
+            Token = refreshTokenValue,
+            ExpiresAtUtc = expiresAtUtc,
         };
 
-        await _tokens.AddAsync(rt, ct);
-        await _tokens.SaveChangesAsync(ct);
+        await refreshTokensRepository.AddAsync(refreshToken, cancellationToken);
+        await refreshTokensRepository.SaveChangesAsync(cancellationToken);
 
-        var access = _jwt.CreateAccessToken(user);
-        return new AuthResponse(access, rawRefresh);
+        return new AuthResponse(
+            accessToken,
+            refreshTokenValue,
+            expiresAtUtc,
+            new UserDto(
+                user.Id,
+                user.Username,
+                user.Email,
+                user.Role,
+                user.Status,
+                user.CreatedAtUtc));
     }
 
-    /// <summary>Rotates refresh token and returns new tokens.</summary>
-    public async Task<AuthResponse> RefreshAsync(RefreshRequest req, CancellationToken ct)
+    private static void ValidateRegisterRequest(RegisterRequest request)
     {
-        var hash = _refreshGen.HashRawToken(req.RefreshToken);
-        var token = await _tokens.FindValidByHashAsync(hash, ct);
+        if (string.IsNullOrWhiteSpace(request.Username))
+            throw new InvalidOperationException("Username is required.");
 
-        if (token is null)
-            throw new InvalidOperationException("Invalid refresh token.");
+        if (string.IsNullOrWhiteSpace(request.Email))
+            throw new InvalidOperationException("Email is required.");
 
-        // revoke old token (rotation)
-        await _tokens.RevokeAsync(token, ct);
-
-        var user = await _users.GetByIdAsync(token.UserId, ct)
-                   ?? throw new InvalidOperationException("User not found.");
-
-        var newRaw = _refreshGen.GenerateRawToken();
-        var newHash = _refreshGen.HashRawToken(newRaw);
-
-        await _tokens.AddAsync(new RefreshToken
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            TokenHash = newHash,
-            CreatedAt = DateTimeOffset.UtcNow,
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30)
-        }, ct);
-
-        await _tokens.SaveChangesAsync(ct);
-
-        var access = _jwt.CreateAccessToken(user);
-        return new AuthResponse(access, newRaw);
-    }
-
-    /// <summary>Revokes all refresh tokens for a user (logout everywhere).</summary>
-    public async Task LogoutAllAsync(Guid userId, CancellationToken ct)
-    {
-        await _tokens.RevokeAllForUserAsync(userId, ct);
-        await _tokens.SaveChangesAsync(ct);
+        if (string.IsNullOrWhiteSpace(request.Password))
+            throw new InvalidOperationException("Password is required.");
     }
 }

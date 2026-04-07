@@ -1,35 +1,20 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Users.Api.Security;
-using Users.Application.Abstractions;
+using Users.Application.Services;
 
 namespace Users.Api.Controllers;
 
-/// <summary>Endpoints for current authenticated user.</summary>
 [ApiController]
-[Route("api/me")]
 [Authorize]
-public sealed class MeController : ControllerBase
+[Route("api/me")]
+public sealed class MeController(UsersService usersService) : ControllerBase
 {
-    private readonly IUsersRepository _users;
-
-    public MeController(IUsersRepository users) => _users = users;
-
-    /// <summary>Returns current user profile info.</summary>
     [HttpGet]
-    public async Task<IActionResult> Get(CancellationToken ct)
+    public async Task<IActionResult> GetMe(CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
-        var user = await _users.GetByIdAsync(userId, ct);
-        if (user is null) return NotFound();
-
-        return Ok(new
-        {
-            user.Id,
-            user.Email,
-            user.Username,
-            role = user.Role.ToString(),
-            status = user.Status.ToString()
-        });
+        var user = await usersService.GetByIdAsync(userId, cancellationToken);
+        return user is null ? NotFound() : Ok(user);
     }
 }

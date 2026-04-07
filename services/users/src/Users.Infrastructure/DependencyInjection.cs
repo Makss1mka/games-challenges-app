@@ -9,24 +9,31 @@ using Users.Infrastructure.Security;
 
 namespace Users.Infrastructure;
 
-/// <summary>DI registration for Users infrastructure and application services.</summary>
 public static class DependencyInjection
 {
-    public static IServiceCollection AddUsersModule(this IServiceCollection services, IConfiguration cfg)
+    public static IServiceCollection AddUsersModule(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        services.AddDbContext<UsersDbContext>(o =>
-            o.UseNpgsql(cfg.GetConnectionString("UsersDb")));
+        var connectionString =
+            configuration.GetConnectionString("UsersDb")
+            ?? configuration["SQLCONNSTR_UsersDb"]
+            ?? throw new InvalidOperationException(
+                "Users database connection string is missing. Set ConnectionStrings__UsersDb or SQLCONNSTR_UsersDb.");
 
-        services.Configure<JwtOptions>(cfg.GetSection("Jwt"));
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+
+        services.AddDbContext<UsersDbContext>(options =>
+            options.UseNpgsql(connectionString));
 
         services.AddScoped<IUsersRepository, UsersRepository>();
         services.AddScoped<IRefreshTokensRepository, RefreshTokensRepository>();
-
-        services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
-        services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
-        services.AddSingleton<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
+        services.AddScoped<IRefreshTokenGenerator, RefreshTokenGenerator>();
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
 
         services.AddScoped<AuthService>();
+        services.AddScoped<UsersService>();
 
         return services;
     }

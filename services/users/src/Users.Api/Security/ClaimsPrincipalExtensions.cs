@@ -2,12 +2,15 @@
 
 namespace Users.Api.Security;
 
-/// <summary>Helpers to read typed claims.</summary>
 public static class ClaimsPrincipalExtensions
 {
-    public static Guid GetUserId(this ClaimsPrincipal user)
+    public static Guid GetUserId(this ClaimsPrincipal principal)
     {
-        var sub = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
-        return Guid.Parse(sub!);
+        var raw = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                  ?? principal.FindFirstValue("sub");
+
+        return Guid.TryParse(raw, out var userId)
+            ? userId
+            : throw new UnauthorizedAccessException("User id claim is missing or invalid.");
     }
 }

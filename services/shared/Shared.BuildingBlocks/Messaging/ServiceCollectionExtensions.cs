@@ -1,16 +1,19 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Shared.BuildingBlocks.Messaging;
 
-namespace Shared.BuildingBlocks;
+namespace Shared.BuildingBlocks.Messaging;
 
 public static class ServiceCollectionExtensions
 {
-    /// <summary>Adds RabbitMQ publisher.</summary>
-    public static IServiceCollection AddRabbitMqPublisher(this IServiceCollection services, IConfiguration cfg)
+    public static IServiceCollection AddRabbitMqPublisher(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        services.Configure<RabbitMqOptions>(opt => cfg.GetSection("RabbitMq").Bind(opt));
+        services.Configure<RabbitMqOptions>(
+            configuration.GetSection(RabbitMqOptions.SectionName));
+
         services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
+
         return services;
     }
 }

@@ -1,7 +1,6 @@
 ﻿namespace Shared.BuildingBlocks.Messaging;
 
-
 public interface IEventPublisher
 {
-    Task PublishAsync<T>(T evt, CancellationToken ct = default) where T : class;
+    Task PublishAsync<T>(string routingKey, T payload, CancellationToken cancellationToken = default);
 }

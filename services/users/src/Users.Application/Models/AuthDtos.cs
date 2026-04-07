@@ -1,13 +1,29 @@
-﻿namespace Users.Application.Models;
+﻿using Users.Domain.Enums;
 
-/// <summary>Register request.</summary>
-public sealed record RegisterRequest(string Email, string Password, string? Username);
+namespace Users.Application.Models;
 
-/// <summary>Login request.</summary>
-public sealed record LoginRequest(string Email, string Password);
+public sealed record RegisterRequest(
+    string Username,
+    string Email,
+    string Password);
 
-/// <summary>Auth response with access and refresh tokens.</summary>
-public sealed record AuthResponse(string AccessToken, string RefreshToken);
+public sealed record LoginRequest(
+    string Login,
+    string Password);
 
-/// <summary>Refresh request.</summary>
-public sealed record RefreshRequest(string RefreshToken);
+public sealed record RefreshTokenRequest(
+    string RefreshToken);
+
+public sealed record AuthResponse(
+    string AccessToken,
+    string RefreshToken,
+    DateTimeOffset ExpiresAtUtc,
+    UserDto User);
+
+public sealed record UserDto(
+    Guid Id,
+    string Username,
+    string Email,
+    UserRole Role,
+    UserStatus Status,
+    DateTimeOffset CreatedAtUtc);

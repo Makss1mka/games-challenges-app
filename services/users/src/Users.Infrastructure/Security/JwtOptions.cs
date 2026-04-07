@@ -1,10 +1,11 @@
 ﻿namespace Users.Infrastructure.Security;
 
-/// <summary>JWT token settings.</summary>
 public sealed class JwtOptions
 {
-    public string Issuer { get; init; } = "survival.users";
-    public string Audience { get; init; } = "survival.api";
-    public string Secret { get; init; } = "CHANGE_ME__MIN_32_CHARS_SECRET_KEY";
-    public int AccessTokenMinutes { get; init; } = 20;
+    public const string SectionName = "Jwt";
+
+    public string Issuer { get; init; } = string.Empty;
+    public string Audience { get; init; } = string.Empty;
+    public string Secret { get; init; } = string.Empty;
+    public int AccessTokenMinutes { get; init; } = 60;
 }

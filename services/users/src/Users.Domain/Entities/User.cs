@@ -2,16 +2,16 @@
 
 namespace Users.Domain.Entities;
 
-/// <summary>Represents an application user account.</summary>
 public sealed class User
 {
     public Guid Id { get; set; }
-    public string Email { get; set; } = default!;
-    public string? Username { get; set; }
-    public string PasswordHash { get; set; } = default!;
-    public UserRole Role { get; set; } = UserRole.User;
-    public bool IsEmailConfirmed { get; set; }
-    public UserStatus Status { get; set; } = UserStatus.Active;
-    public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public string Username { get; set; } = null!;
+    public string NormalizedUsername { get; set; } = null!;
+    public string Email { get; set; } = null!;
+    public string PasswordHash { get; set; } = null!;
+    public UserRole Role { get; set; }
+    public UserStatus Status { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
 }

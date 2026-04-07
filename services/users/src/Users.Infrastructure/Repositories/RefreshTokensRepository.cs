@@ -5,39 +5,38 @@ using Users.Infrastructure.Persistence;
 
 namespace Users.Infrastructure.Repositories;
 
-/// <summary>EF Core implementation of refresh tokens repository.</summary>
-public sealed class RefreshTokensRepository : IRefreshTokensRepository
+public sealed class RefreshTokensRepository(UsersDbContext dbContext) : IRefreshTokensRepository
 {
-    private readonly UsersDbContext _db;
-
-    public RefreshTokensRepository(UsersDbContext db) => _db = db;
-
-    public Task AddAsync(RefreshToken token, CancellationToken ct) =>
-        _db.RefreshTokens.AddAsync(token, ct).AsTask();
-
-    public Task<RefreshToken?> FindValidByHashAsync(string tokenHash, CancellationToken ct) =>
-        _db.RefreshTokens.FirstOrDefaultAsync(x =>
-            x.TokenHash == tokenHash &&
-            x.RevokedAt == null &&
-            x.ExpiresAt > DateTimeOffset.UtcNow, ct);
-
-    public Task RevokeAsync(RefreshToken token, CancellationToken ct)
+    public Task AddAsync(RefreshToken refreshToken, CancellationToken cancellationToken = default)
     {
-        token.RevokedAt = DateTimeOffset.UtcNow;
-        _db.RefreshTokens.Update(token);
-        return Task.CompletedTask;
+        return dbContext.RefreshTokens.AddAsync(refreshToken, cancellationToken).AsTask();
     }
 
-    public async Task RevokeAllForUserAsync(Guid userId, CancellationToken ct)
+    public Task<RefreshToken?> GetActiveAsync(string token, CancellationToken cancellationToken = default)
     {
-        var tokens = await _db.RefreshTokens
-            .Where(x => x.UserId == userId && x.RevokedAt == null && x.ExpiresAt > DateTimeOffset.UtcNow)
-            .ToListAsync(ct);
+        var normalized = token.Trim();
+
+        return dbContext.RefreshTokens
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(
+                x => x.Token == normalized && x.RevokedAtUtc == null,
+                cancellationToken);
+    }
+
+    public async Task RevokeAllByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var tokens = await dbContext.RefreshTokens
+            .Where(x => x.UserId == userId && x.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
-        foreach (var t in tokens) t.RevokedAt = now;
+
+        foreach (var token in tokens)
+            token.RevokedAtUtc = now;
     }
 
-    public Task SaveChangesAsync(CancellationToken ct) =>
-        _db.SaveChangesAsync(ct);
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

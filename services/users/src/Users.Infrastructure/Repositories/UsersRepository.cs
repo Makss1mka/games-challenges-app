@@ -5,25 +5,67 @@ using Users.Infrastructure.Persistence;
 
 namespace Users.Infrastructure.Repositories;
 
-/// <summary>EF Core implementation of users repository.</summary>
-public sealed class UsersRepository : IUsersRepository
+public sealed class UsersRepository(UsersDbContext dbContext) : IUsersRepository
 {
-    private readonly UsersDbContext _db;
+    public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Users.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
 
-    public UsersRepository(UsersDbContext db) => _db = db;
+    public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        return dbContext.Users.FirstOrDefaultAsync(x => x.Email == normalized, cancellationToken);
+    }
 
-    public Task<User?> GetByIdAsync(Guid id, CancellationToken ct) =>
-        _db.Users.FirstOrDefaultAsync(x => x.Id == id, ct);
+    public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default)
+    {
+        var normalized = username.Trim().ToLowerInvariant();
+        return dbContext.Users.FirstOrDefaultAsync(x => x.NormalizedUsername == normalized, cancellationToken);
+    }
 
-    public Task<User?> GetByEmailAsync(string email, CancellationToken ct) =>
-        _db.Users.FirstOrDefaultAsync(x => x.Email == email, ct);
+    public Task<User?> GetByEmailOrUsernameAsync(string value, CancellationToken cancellationToken = default)
+    {
+        var normalized = value.Trim().ToLowerInvariant();
 
-    public Task<bool> EmailExistsAsync(string email, CancellationToken ct) =>
-        _db.Users.AnyAsync(x => x.Email == email, ct);
+        return dbContext.Users.FirstOrDefaultAsync(
+            x => x.Email == normalized || x.NormalizedUsername == normalized,
+            cancellationToken);
+    }
 
-    public Task AddAsync(User user, CancellationToken ct) =>
-        _db.Users.AddAsync(user, ct).AsTask();
+    public async Task<IReadOnlyCollection<User>> SearchAsync(
+        string? query,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default)
+    {
+        var users = dbContext.Users
+            .AsNoTracking()
+            .AsQueryable();
 
-    public Task SaveChangesAsync(CancellationToken ct) =>
-        _db.SaveChangesAsync(ct);
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var normalized = query.Trim().ToLowerInvariant();
+
+            users = users.Where(x =>
+                x.Username.ToLower().Contains(normalized) ||
+                x.Email.ToLower().Contains(normalized));
+        }
+
+        return await users
+            .OrderBy(x => x.Username)
+            .Skip(skip)
+            .Take(take)
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public Task AddAsync(User user, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Users.AddAsync(user, cancellationToken).AsTask();
+    }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

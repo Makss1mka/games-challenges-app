@@ -8,31 +8,34 @@ using Users.Domain.Entities;
 
 namespace Users.Infrastructure.Security;
 
-/// <summary>JWT access token generator.</summary>
-public sealed class JwtTokenService : IJwtTokenService
+public sealed class JwtTokenService(IOptions<JwtOptions> options) : IJwtTokenService
 {
-    private readonly JwtOptions _opt;
+    private readonly JwtOptions _options = options.Value;
 
-    public JwtTokenService(IOptions<JwtOptions> options) => _opt = options.Value;
-
-    public string CreateAccessToken(User user)
+    public string GenerateAccessToken(User user)
     {
+        var now = DateTimeOffset.UtcNow;
+
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.Username),
+            new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Role, user.Role.ToString()),
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opt.Secret));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var credentials = new SigningCredentials(
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Secret)),
+            SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _opt.Issuer,
-            audience: _opt.Audience,
+            issuer: _options.Issuer,
+            audience: _options.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(_opt.AccessTokenMinutes),
-            signingCredentials: creds);
+            notBefore: now.UtcDateTime,
+            expires: now.AddMinutes(_options.AccessTokenMinutes).UtcDateTime,
+            signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }

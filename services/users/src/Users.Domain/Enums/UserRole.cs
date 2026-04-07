@@ -1,6 +1,6 @@
 ﻿namespace Users.Domain.Enums;
 
-public enum UserRole : short
+public enum UserRole
 {
     User = 0,
     Moderator = 1,

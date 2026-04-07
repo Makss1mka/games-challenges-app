@@ -1,46 +1,44 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Reflection.Emit;
 using Users.Domain.Entities;
 
 namespace Users.Infrastructure.Persistence;
 
-/// <summary>EF Core DbContext for Users service.</summary>
-public sealed class UsersDbContext : DbContext
+public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options) : DbContext(options)
 {
-    public UsersDbContext(DbContextOptions<UsersDbContext> options) : base(options) { }
-
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
-    protected override void OnModelCreating(ModelBuilder b)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        b.HasDefaultSchema("users");
+        modelBuilder.HasDefaultSchema("users");
 
-        b.Entity<User>(e =>
+        modelBuilder.Entity<User>(entity =>
         {
-            e.ToTable("users");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Email).IsRequired().HasMaxLength(320);
-            e.HasIndex(x => x.Email).IsUnique();
-            e.Property(x => x.Username).HasMaxLength(32);
-            e.HasIndex(x => x.Username).IsUnique().HasFilter("\"username\" IS NOT NULL");
-            e.Property(x => x.PasswordHash).IsRequired();
-            e.Property(x => x.Role).HasConversion<short>();
-            e.Property(x => x.Status).HasConversion<short>();
-            e.Property(x => x.CreatedAt).IsRequired();
-            e.Property(x => x.UpdatedAt).IsRequired();
+            entity.ToTable("users");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Username).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.NormalizedUsername).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
+
+            entity.HasIndex(x => x.Email).IsUnique();
+            entity.HasIndex(x => x.NormalizedUsername).IsUnique();
+            entity.HasIndex(x => x.Username);
         });
 
-        b.Entity<RefreshToken>(e =>
+        modelBuilder.Entity<RefreshToken>(entity =>
         {
-            e.ToTable("refresh_tokens");
-            e.HasKey(x => x.Id);
-            e.HasIndex(x => x.UserId);
-            e.HasIndex(x => x.ExpiresAt);
-            e.Property(x => x.TokenHash).IsRequired();
-            e.Property(x => x.CreatedAt).IsRequired();
-            e.Property(x => x.ExpiresAt).IsRequired();
+            entity.ToTable("refresh_tokens");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Token).HasMaxLength(256).IsRequired();
+            entity.HasIndex(x => x.Token).IsUnique();
+
+            entity.HasOne(x => x.User)
+                .WithMany(x => x.RefreshTokens)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

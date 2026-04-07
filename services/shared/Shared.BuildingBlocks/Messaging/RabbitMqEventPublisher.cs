@@ -5,75 +5,60 @@ using RabbitMQ.Client;
 
 namespace Shared.BuildingBlocks.Messaging;
 
-/// <summary>
-/// RabbitMQ publisher for integration events (RabbitMQ.Client v7+).
-/// RoutingKey = full type name by default.
-/// </summary>
-public sealed class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
+public sealed class RabbitMqEventPublisher(IOptions<RabbitMqOptions> options) : IEventPublisher, IAsyncDisposable
 {
-    private readonly RabbitMqOptions _opt;
-
+    private readonly RabbitMqOptions _options = options.Value;
     private IConnection? _connection;
     private IChannel? _channel;
 
-    public RabbitMqEventPublisher(IOptions<RabbitMqOptions> options)
+    public async Task PublishAsync<T>(
+        string routingKey,
+        T payload,
+        CancellationToken cancellationToken = default)
     {
-        _opt = options.Value;
-    }
+        await EnsureConnectedAsync(cancellationToken);
 
-    /// <summary>Publishes an event to RabbitMQ exchange.</summary>
-    public async Task PublishAsync<T>(T evt, CancellationToken ct = default) where T : class
-    {
-        await EnsureConnectedAsync(ct);
-
-        var routingKey = typeof(T).FullName ?? typeof(T).Name;
-        var json = JsonSerializer.Serialize(evt);
-        var body = Encoding.UTF8.GetBytes(json);
-
-        // v7: CreateBasicProperties removed; instantiate BasicProperties directly
-        var props = new BasicProperties
-        {
-            Persistent = true,
-            ContentType = "application/json",
-            Type = routingKey
-        };
+        var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload));
 
         await _channel!.BasicPublishAsync(
-            exchange: _opt.Exchange,
+            exchange: _options.Exchange,
             routingKey: routingKey,
             mandatory: false,
-            basicProperties: props,
             body: body,
-            cancellationToken: ct);
+            cancellationToken: cancellationToken);
     }
 
-    private async Task EnsureConnectedAsync(CancellationToken ct)
+    private async Task EnsureConnectedAsync(CancellationToken cancellationToken)
     {
-        if (_connection is not null && _channel is not null) return;
+        if (_connection is not null && _channel is not null)
+            return;
 
         var factory = new ConnectionFactory
         {
-            HostName = _opt.HostName,
-            Port = _opt.Port,
-            UserName = _opt.UserName,
-            Password = _opt.Password
+            HostName = _options.HostName,
+            Port = _options.Port,
+            UserName = _options.UserName,
+            Password = _options.Password,
         };
 
-        _connection = await factory.CreateConnectionAsync(ct);
-        _channel = await _connection.CreateChannelAsync(null, ct);
+        _connection = await factory.CreateConnectionAsync(cancellationToken);
+        _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
 
         await _channel.ExchangeDeclareAsync(
-            exchange: _opt.Exchange,
-            type: _opt.ExchangeType,
+            exchange: _options.Exchange,
+            type: _options.ExchangeType,
             durable: true,
             autoDelete: false,
             arguments: null,
-            cancellationToken: ct);
+            cancellationToken: cancellationToken);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_channel is not null) await _channel.DisposeAsync();
-        if (_connection is not null) await _connection.DisposeAsync();
+        if (_channel is not null)
+            await _channel.DisposeAsync();
+
+        if (_connection is not null)
+            await _connection.DisposeAsync();
     }
 }
