@@ -2,7 +2,6 @@
 Game model
 """
 
-from typing import List
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,4 +13,4 @@ class Game(BaseModel):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     author_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
 
-    chalenges: Mapped[List["Chalenge"]] = relationship("Chelenge", uselist=True, back_populates="game")
+    challenges: Mapped[list["Challenge"]] = relationship("Challenge", uselist=True, back_populates="game")

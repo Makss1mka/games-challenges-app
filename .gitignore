@@ -23,6 +23,7 @@ docker-compose.override.yaml
 # local docker volumes / data folders (project-specific)
 docker-data/
 volumes/
+challenges_pics/
 
 # logs
 *.log

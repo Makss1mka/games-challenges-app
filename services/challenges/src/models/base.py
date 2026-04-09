@@ -3,7 +3,7 @@ Base models
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 
 from sqlalchemy import UUID, Boolean, DateTime, MetaData
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -29,17 +29,17 @@ class BaseModel(DeclarativeBase):
         default=uuid.uuid4
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=func.now(),
-        default=datetime.now(UTC),
+        default=datetime.now(timezone.utc),
         nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         onupdate=func.now(),
         server_default=func.now(),
-        default=datetime.now(UTC),
-        nullable=False
+        default=datetime.now(timezone.utc),
+        nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,

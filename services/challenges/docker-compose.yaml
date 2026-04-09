@@ -10,6 +10,8 @@ services:
       retries: 5
     networks:
       - challenges-private
+    volumes:
+      - challenge-db:/var/lib/postgresql/data 
 
   challenges-redis:
     image: redis:7
@@ -36,3 +38,6 @@ services:
 
 networks:
   challenges-private:
+
+volumes:
+  challenge-db:
