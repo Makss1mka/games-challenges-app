@@ -5,8 +5,8 @@ networks:
 
 include:
   - infra/rabbitmq/docker-compose.yaml
-  #- infra/gateway/docker-compose.yaml
-  # - infra/nginx/docker-compose.yaml
+  - infra/gateway/docker-compose.yaml
+  #- infra/nginx/docker-compose.yaml
 
   #- services/users/docker-compose.yaml
   #- services/games/docker-compose.yaml

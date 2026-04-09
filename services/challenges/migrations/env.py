@@ -19,11 +19,11 @@ if config.config_file_name is not None:
 
 from src.models.base import BaseModel
 from src.models.tags import Tag
-from src.models.chalenges import Chalenge
+from src.models.challenges import Challenge
 from src.models.games import Game
 
 target_metadata = BaseModel.metadata
-database_url = os.environ.get("DB_URL", None)
+database_url = os.environ.get("MIGRATIONS_DB_URL", None)
 
 if not database_url:
     raise ValueError("Cannot find database url")
