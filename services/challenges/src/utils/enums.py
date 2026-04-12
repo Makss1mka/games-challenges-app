@@ -5,11 +5,7 @@ Enum classes
 from enum import StrEnum
 
 
-class ChalengeStatusEnum(StrEnum):
-    """
-    Enum for users chalenges
-    """
-
+class ChallengeStatusEnum(StrEnum):
     PUBLIC = "PUBLIC"
     PRIVATE = "PRIVATE"
     BLOCKED = "BLOCKED"
@@ -17,8 +13,36 @@ class ChalengeStatusEnum(StrEnum):
 
 
 class TagStatusEnum(StrEnum):
-    """
-    Enum for users tags
-    """
-
     ACTIVE = "ACTIVE"
+
+
+class ResponseStatus(StrEnum):
+    SUCCESS = "success"
+    EXCEPTION = "exception"
+
+
+class ResponseDataType(StrEnum):
+    STRING = "str"
+    JSON = "json"
+
+
+class UserRole(StrEnum):
+    GUEST = "Guest"
+    USER = "User"
+    ADMIN = "Admin"
+
+
+class UserStatus(StrEnum):
+    BLOCKED = "BLOCKED"
+    ACTIVE = "ACTIVE"
+
+
+class ResponseTextStatus(StrEnum):
+    SUCCESS = "success"
+    EXCEPTION = "exception"
+
+
+class ChallengeContentBlockType(StrEnum):
+    TEXT = "text"
+    PICTURE = "picture"
+    LINK = "link"
