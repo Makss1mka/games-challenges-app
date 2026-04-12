@@ -33,6 +33,26 @@ public sealed class LibraryController(LibraryService libraryService) : Controlle
         return Ok(item);
     }
 
+    [HttpPost("me/import/steam")]
+    public async Task<ActionResult<ExternalLibraryImportResultDto>> ImportSteam(
+        ImportSteamLibraryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var result = await libraryService.ImportSteamLibraryAsync(userId, request, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("me/import/epic-games")]
+    public async Task<ActionResult<ExternalLibraryImportResultDto>> ImportEpicGames(
+        ImportEpicGamesLibraryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var result = await libraryService.ImportEpicGamesLibraryAsync(userId, request, cancellationToken);
+        return Ok(result);
+    }
+
     [HttpDelete("me/{gameId:guid}")]
     public async Task<IActionResult> RemoveMine(Guid gameId, CancellationToken cancellationToken)
     {

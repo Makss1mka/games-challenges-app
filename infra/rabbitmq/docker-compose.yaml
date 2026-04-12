@@ -3,8 +3,21 @@ services:
     image: rabbitmq:3-management
     container_name: rabbitmq
     env_file:
-      - .env
+      - ../../.env
     ports:
+      - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     networks:
       - backend
+
+volumes:
+  rabbitmq-data:

@@ -1,6 +1,7 @@
 using Games.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Shared.BuildingBlocks.Exceptions;
 using Shared.BuildingBlocks.Messaging;
 using System.Security.Claims;
 using System.Text;
@@ -12,6 +13,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddGamesModule(builder.Configuration);
 builder.Services.AddRabbitMqPublisher(builder.Configuration);

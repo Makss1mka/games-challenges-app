@@ -12,6 +12,7 @@ public interface IGamesRepository
         CancellationToken cancellationToken = default);
 
     Task<Game?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Game?> GetByExactTitleAsync(string title, CancellationToken cancellationToken = default);
     Task<Game?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<bool> ExistsBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task AddAsync(Game game, CancellationToken cancellationToken = default);

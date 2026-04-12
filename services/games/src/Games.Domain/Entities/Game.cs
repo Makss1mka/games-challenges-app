@@ -11,5 +11,6 @@ public sealed class Game
     public DateOnly? ReleaseDate { get; set; }
 
     public ICollection<GameTag> GameTags { get; set; } = new List<GameTag>();
+    public ICollection<GameExternalMapping> ExternalMappings { get; set; } = new List<GameExternalMapping>();
     public ICollection<UserLibraryItem> LibraryItems { get; set; } = new List<UserLibraryItem>();
 }

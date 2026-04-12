@@ -60,6 +60,16 @@ public sealed class GamesRepository(GamesDbContext dbContext) : IGamesRepository
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
+    public Task<Game?> GetByExactTitleAsync(string title, CancellationToken cancellationToken = default)
+    {
+        var normalized = title.Trim().ToLower();
+
+        return dbContext.Games
+            .Include(x => x.GameTags)
+                .ThenInclude(x => x.Tag)
+            .FirstOrDefaultAsync(x => x.Title.ToLower() == normalized, cancellationToken);
+    }
+
     public Task<Game?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         var normalized = slug.Trim().ToLower();

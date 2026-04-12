@@ -1,12 +1,16 @@
-﻿using Games.Application.Abstractions;
+using Games.Application.Abstractions;
 using Games.Application.Models;
 using Games.Domain.Entities;
+using Shared.BuildingBlocks.Exceptions;
+using Shared.BuildingBlocks.Messaging;
+using Shared.Contracts.Events;
 
 namespace Games.Application.Services;
 
 public sealed class GameService(
     IGamesRepository gamesRepository,
-    ITagsRepository tagsRepository)
+    ITagsRepository tagsRepository,
+    IEventPublisher eventPublisher)
 {
     public async Task<IReadOnlyCollection<GameDto>> SearchAsync(
         string? query,
@@ -60,7 +64,7 @@ public sealed class GameService(
         var normalizedSlug = request.Slug.Trim().ToLowerInvariant();
 
         if (await gamesRepository.ExistsBySlugAsync(normalizedSlug, cancellationToken))
-            throw new InvalidOperationException($"Game with slug '{normalizedSlug}' already exists.");
+            throw new ConflictException($"Game with slug '{normalizedSlug}' already exists.");
 
         var tags = await tagsRepository.GetOrCreateAsync(
             NormalizeTags(request.Tags),
@@ -87,6 +91,17 @@ public sealed class GameService(
 
         await gamesRepository.AddAsync(game, cancellationToken);
         await gamesRepository.SaveChangesAsync(cancellationToken);
+        await eventPublisher.PublishAsync(
+            EventRoutingKeys.GameCreated,
+            new GameCreatedEvent(
+                game.Id,
+                game.Title,
+                game.Slug,
+                game.GameTags
+                    .Select(gt => gt.Tag.Name)
+                    .OrderBy(static x => x)
+                    .ToArray()),
+            cancellationToken);
 
         return MapGame(game);
     }
@@ -110,10 +125,10 @@ public sealed class GameService(
     private static void ValidateCreateRequest(CreateGameRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
-            throw new InvalidOperationException("Title is required.");
+            throw new BadRequestException("Title is required.");
 
         if (string.IsNullOrWhiteSpace(request.Slug))
-            throw new InvalidOperationException("Slug is required.");
+            throw new BadRequestException("Slug is required.");
     }
 
     private static IReadOnlyCollection<string> NormalizeTags(IReadOnlyCollection<string>? tags)

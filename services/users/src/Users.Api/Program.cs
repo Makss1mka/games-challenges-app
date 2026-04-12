@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Shared.BuildingBlocks.Exceptions;
 using Shared.BuildingBlocks.Messaging;
 using Users.Infrastructure;
 using Users.Infrastructure.Security;
@@ -13,6 +14,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddUsersModule(builder.Configuration);
 builder.Services.AddRabbitMqPublisher(builder.Configuration);

@@ -8,6 +8,7 @@ public sealed class GamesDbContext(DbContextOptions<GamesDbContext> options) : D
     public DbSet<Game> Games => Set<Game>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<GameTag> GameTags => Set<GameTag>();
+    public DbSet<GameExternalMapping> GameExternalMappings => Set<GameExternalMapping>();
     public DbSet<UserLibraryItem> UserLibraryItems => Set<UserLibraryItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -52,6 +53,23 @@ public sealed class GamesDbContext(DbContextOptions<GamesDbContext> options) : D
                 .WithMany(x => x.GameTags)
                 .HasForeignKey(x => x.TagId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GameExternalMapping>(entity =>
+        {
+            entity.ToTable("game_external_mappings");
+            entity.HasKey(x => new { x.Source, x.ExternalGameId });
+
+            entity.Property(x => x.ExternalGameId).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.ExternalTitle).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.LastSyncedAtUtc).IsRequired();
+
+            entity.HasOne(x => x.Game)
+                .WithMany(x => x.ExternalMappings)
+                .HasForeignKey(x => x.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => x.GameId);
         });
 
         modelBuilder.Entity<UserLibraryItem>(entity =>

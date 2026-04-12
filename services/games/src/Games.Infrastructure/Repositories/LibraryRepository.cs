@@ -40,6 +40,20 @@ public sealed class LibraryRepository(GamesDbContext dbContext) : ILibraryReposi
             .FirstOrDefaultAsync(x => x.UserId == userId && x.GameId == gameId, cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<UserLibraryItem>> GetByUserAndGameIdsAsync(
+        Guid userId,
+        IReadOnlyCollection<Guid> gameIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (gameIds.Count == 0)
+            return Array.Empty<UserLibraryItem>();
+
+        return await dbContext.UserLibraryItems
+            .AsNoTracking()
+            .Where(x => x.UserId == userId && gameIds.Contains(x.GameId))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public Task AddAsync(UserLibraryItem item, CancellationToken cancellationToken = default)
     {
         return dbContext.UserLibraryItems.AddAsync(item, cancellationToken).AsTask();

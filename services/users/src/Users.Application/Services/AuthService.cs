@@ -1,5 +1,7 @@
-﻿using Games.Api.Security;
 using System.Security.Claims;
+using Shared.BuildingBlocks.Exceptions;
+using Shared.BuildingBlocks.Messaging;
+using Shared.Contracts.Events;
 using Users.Application.Abstractions;
 using Users.Application.Models;
 using Users.Domain.Entities;
@@ -12,7 +14,8 @@ public sealed class AuthService(
     IRefreshTokensRepository refreshTokensRepository,
     IPasswordHasher passwordHasher,
     IJwtTokenService jwtTokenService,
-    IRefreshTokenGenerator refreshTokenGenerator)
+    IRefreshTokenGenerator refreshTokenGenerator,
+    IEventPublisher eventPublisher)
 {
     public async Task<AuthResponse> RegisterAsync(
         RegisterRequest request,
@@ -24,10 +27,10 @@ public sealed class AuthService(
         var normalizedUsername = request.Username.Trim().ToLowerInvariant();
 
         if (await usersRepository.GetByEmailAsync(normalizedEmail, cancellationToken) is not null)
-            throw new InvalidOperationException("Email is already registered.");
+            throw new ConflictException("Email is already registered.");
 
         if (await usersRepository.GetByUsernameAsync(normalizedUsername, cancellationToken) is not null)
-            throw new InvalidOperationException("Username is already taken.");
+            throw new ConflictException("Username is already taken.");
 
         var user = new User
         {
@@ -43,6 +46,10 @@ public sealed class AuthService(
 
         await usersRepository.AddAsync(user, cancellationToken);
         await usersRepository.SaveChangesAsync(cancellationToken);
+        await eventPublisher.PublishAsync(
+            EventRoutingKeys.UserRegistered,
+            new UserRegisteredEvent(user.Id, user.Username, user.Email),
+            cancellationToken);
 
         return await IssueTokensAsync(user, cancellationToken);
     }
@@ -52,19 +59,19 @@ public sealed class AuthService(
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.Login))
-            throw new InvalidOperationException("Login is required.");
+            throw new BadRequestException("Login is required.");
 
         if (string.IsNullOrWhiteSpace(request.Password))
-            throw new InvalidOperationException("Password is required.");
+            throw new BadRequestException("Password is required.");
 
         var user = await usersRepository.GetByEmailOrUsernameAsync(request.Login.Trim(), cancellationToken)
-                   ?? throw new InvalidOperationException("Invalid credentials.");
+                   ?? throw new UnauthorizedAccessException("Invalid credentials.");
 
         if (!passwordHasher.Verify(request.Password, user.PasswordHash))
-            throw new InvalidOperationException("Invalid credentials.");
+            throw new UnauthorizedAccessException("Invalid credentials.");
 
         if (user.Status is not UserStatus.Active)
-            throw new InvalidOperationException("User is not active.");
+            throw new ForbiddenException("User is not active.");
 
         return await IssueTokensAsync(user, cancellationToken);
     }
@@ -74,13 +81,13 @@ public sealed class AuthService(
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.RefreshToken))
-            throw new InvalidOperationException("Refresh token is required.");
+            throw new BadRequestException("Refresh token is required.");
 
         var existing = await refreshTokensRepository.GetActiveAsync(request.RefreshToken.Trim(), cancellationToken)
-                      ?? throw new InvalidOperationException("Refresh token is invalid.");
+                      ?? throw new UnauthorizedAccessException("Refresh token is invalid.");
 
         if (existing.ExpiresAtUtc <= DateTimeOffset.UtcNow)
-            throw new InvalidOperationException("Refresh token is expired.");
+            throw new UnauthorizedAccessException("Refresh token is expired.");
 
         existing.RevokedAtUtc = DateTimeOffset.UtcNow;
         await refreshTokensRepository.SaveChangesAsync(cancellationToken);
@@ -92,7 +99,7 @@ public sealed class AuthService(
         ClaimsPrincipal principal,
         CancellationToken cancellationToken = default)
     {
-        var userId = principal.GetUserId();
+        var userId = GetUserId(principal);
         await refreshTokensRepository.RevokeAllByUserIdAsync(userId, cancellationToken);
         await refreshTokensRepository.SaveChangesAsync(cancellationToken);
     }
@@ -132,12 +139,22 @@ public sealed class AuthService(
     private static void ValidateRegisterRequest(RegisterRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Username))
-            throw new InvalidOperationException("Username is required.");
+            throw new BadRequestException("Username is required.");
 
         if (string.IsNullOrWhiteSpace(request.Email))
-            throw new InvalidOperationException("Email is required.");
+            throw new BadRequestException("Email is required.");
 
         if (string.IsNullOrWhiteSpace(request.Password))
-            throw new InvalidOperationException("Password is required.");
+            throw new BadRequestException("Password is required.");
+    }
+
+    private static Guid GetUserId(ClaimsPrincipal principal)
+    {
+        var raw = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                  ?? principal.FindFirstValue("sub");
+
+        return Guid.TryParse(raw, out var userId)
+            ? userId
+            : throw new UnauthorizedAccessException("User id claim is missing or invalid.");
     }
 }
