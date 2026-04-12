@@ -30,6 +30,8 @@ services:
       - .env
       - ../../.env
     depends_on:
+      challenges-db:
+        condition: service_healthy
       challenges-redis:
         condition: service_healthy
     networks:

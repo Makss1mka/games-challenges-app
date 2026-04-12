@@ -22,9 +22,22 @@ services:
       - users-private
 
   users-migrations:
+    build:
+      context: ../../
+      dockerfile: services/users/Dockerfile
+      target: build
     image: users-api
     container_name: users-migrations
-    command: ["dotnet", "ef", "database", "update"]
+    working_dir: /src
+    command:
+      - dotnet
+      - ef
+      - database
+      - update
+      - --project
+      - services/users/src/Users.Infrastructure/Users.Infrastructure.csproj
+      - --startup-project
+      - services/users/src/Users.Api/Users.Api.csproj
     env_file:
       - .env
       - ../../.env
@@ -36,7 +49,9 @@ services:
     restart: "no"
 
   users-api:
-    build: .
+    build:
+      context: ../../
+      dockerfile: services/users/Dockerfile
     container_name: users-api
     env_file:
       - .env

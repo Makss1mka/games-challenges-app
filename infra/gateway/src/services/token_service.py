@@ -7,8 +7,8 @@ import os
 
 logger = logging.getLogger(__name__)
 
-TOKEN_SECRET = os.environ.get("SECRET")
-TOKEN_EXPECTED_AUDIENCE = os.environ.get("TOKEN_AUDIENCE")
+TOKEN_SECRET = os.environ.get("Jwt__Secret") or os.environ.get("SECRET")
+TOKEN_EXPECTED_AUDIENCE = os.environ.get("Jwt__Audience") or os.environ.get("TOKEN_AUDIENCE")
 
 USER_ID_HEADER_NAME = "x-user-id"
 USER_NAME_HEADER_NAME = "x-user-name"
@@ -28,6 +28,12 @@ class TokenService:
     
 
     async def _decode_access_token(self, token: str) -> dict:
+        if not TOKEN_SECRET:
+            raise UnauthorizedException("Access token secret is not configured")
+
+        if not TOKEN_EXPECTED_AUDIENCE:
+            raise UnauthorizedException("Access token audience is not configured")
+
         try:
             payload = jwt.decode(
                 token,
@@ -45,6 +51,9 @@ class TokenService:
 
     async def add_user_context(self, headers: dict) -> None:
         token = self._req.headers.get("Authorization", "").replace("Bearer ", "")
+        if not token:
+            raise UnauthorizedException("Access token is missing")
+
         user_data = await self._decode_access_token(token)
 
         try:
@@ -54,5 +63,5 @@ class TokenService:
             headers[USER_EMAIL_HEADER_NAME] = user_data[USER_EMAIL_TOKEN_FIELD_NAME]
         except Exception as e:
             logger.debug(f"Error while try to add user context. {e}")
-            return UnauthorizedException("Invalid token data")
+            raise UnauthorizedException("Invalid token data")
 
