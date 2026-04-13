@@ -75,10 +75,11 @@ public sealed class GameService(
             Id = Guid.NewGuid(),
             Title = request.Title.Trim(),
             Slug = normalizedSlug,
-            Description = NormalizeNullable(request.Description),
-            Developer = NormalizeNullable(request.Developer),
-            Publisher = NormalizeNullable(request.Publisher),
+            Description = NormalizeNullable(request.Description, 4000),
+            Developer = NormalizeNullable(request.Developer, 256),
+            Publisher = NormalizeNullable(request.Publisher, 256),
             ReleaseDate = request.ReleaseDate,
+            ImageUrl = NormalizeNullable(request.ImageUrl, 1024),
             GameTags = tags
                 .Select(tag => new GameTag
                 {
@@ -106,6 +107,75 @@ public sealed class GameService(
         return MapGame(game);
     }
 
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var game = await gamesRepository.GetByIdAsync(id, cancellationToken);
+        if (game is null)
+            return false;
+
+        await gamesRepository.RemoveAsync(game, cancellationToken);
+        await gamesRepository.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<GameDto?> UpdateAsync(
+        Guid id,
+        UpdateGameRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var game = await gamesRepository.GetByIdAsync(id, cancellationToken);
+        if (game is null)
+            return null;
+
+        if (!string.IsNullOrWhiteSpace(request.Title))
+            game.Title = request.Title.Trim();
+
+        if (!string.IsNullOrWhiteSpace(request.Slug))
+        {
+            var normalizedSlug = request.Slug.Trim().ToLowerInvariant();
+            if (!string.Equals(game.Slug, normalizedSlug, StringComparison.OrdinalIgnoreCase) &&
+                await gamesRepository.ExistsBySlugAsync(normalizedSlug, cancellationToken))
+            {
+                throw new ConflictException($"Game with slug '{normalizedSlug}' already exists.");
+            }
+            game.Slug = normalizedSlug;
+        }
+
+        if (request.Description is not null)
+            game.Description = NormalizeNullable(request.Description, 4000);
+
+        if (request.Developer is not null)
+            game.Developer = NormalizeNullable(request.Developer, 256);
+
+        if (request.Publisher is not null)
+            game.Publisher = NormalizeNullable(request.Publisher, 256);
+
+        if (request.ReleaseDate.HasValue)
+            game.ReleaseDate = request.ReleaseDate;
+
+        if (request.ImageUrl is not null)
+            game.ImageUrl = NormalizeNullable(request.ImageUrl, 1024);
+
+        if (request.Tags is not null)
+        {
+            var tags = await tagsRepository.GetOrCreateAsync(
+                NormalizeTags(request.Tags),
+                cancellationToken);
+
+            game.GameTags = tags
+                .Select(tag => new GameTag
+                {
+                    GameId = game.Id,
+                    TagId = tag.Id,
+                    Tag = tag,
+                })
+                .ToList();
+        }
+
+        await gamesRepository.SaveChangesAsync(cancellationToken);
+        return MapGame(game);
+    }
+
     private static GameDto MapGame(Game game)
     {
         return new GameDto(
@@ -116,6 +186,7 @@ public sealed class GameService(
             game.Developer,
             game.Publisher,
             game.ReleaseDate,
+            game.ImageUrl,
             game.GameTags
                 .Select(gt => gt.Tag.Name)
                 .OrderBy(static x => x)
@@ -142,9 +213,16 @@ public sealed class GameService(
 
     private static string? NormalizeNullable(string? value)
     {
-        return string.IsNullOrWhiteSpace(value)
-            ? null
-            : value.Trim();
+        return NormalizeNullable(value, 256);
+    }
+
+    private static string? NormalizeNullable(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
     }
 
     private static int NormalizeTake(int take) => take switch

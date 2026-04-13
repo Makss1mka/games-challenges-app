@@ -14,4 +14,4 @@ include:
   - services/social/docker-compose.yaml
   #- services/recommendations/docker-compose.yaml
 
-  #- frontend/docker-compose.yaml
+  - frontend/docker-compose.yaml

@@ -33,5 +33,23 @@ class Challenge(BaseModel):
 
     game: Mapped["Game"] = relationship("Game", uselist=False, back_populates="challenges")
     tags: Mapped[list["Tag"]] = relationship("Tag", secondary=challenge_tags, back_populates="challenges")
+    comments: Mapped[list["ChallengeComment"]] = relationship(
+        "ChallengeComment",
+        uselist=True,
+        back_populates="challenge",
+        cascade="all, delete-orphan"
+    )
+    likes: Mapped[list["ChallengeLike"]] = relationship(
+        "ChallengeLike",
+        uselist=True,
+        back_populates="challenge",
+        cascade="all, delete-orphan"
+    )
+    dislikes: Mapped[list["ChallengeDislike"]] = relationship(
+        "ChallengeDislike",
+        uselist=True,
+        back_populates="challenge",
+        cascade="all, delete-orphan"
+    )
 
     

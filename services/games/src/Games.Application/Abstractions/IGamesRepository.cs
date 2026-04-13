@@ -16,5 +16,6 @@ public interface IGamesRepository
     Task<Game?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<bool> ExistsBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task AddAsync(Game game, CancellationToken cancellationToken = default);
+    Task RemoveAsync(Game game, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

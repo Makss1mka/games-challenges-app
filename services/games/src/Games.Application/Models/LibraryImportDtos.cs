@@ -17,7 +17,13 @@ public sealed record ExternalLibraryImportContext(
 
 public sealed record ExternalOwnedGame(
     string ExternalGameId,
-    string Title);
+    string Title,
+    string? Description = null,
+    string? Developer = null,
+    string? Publisher = null,
+    DateOnly? ReleaseDate = null,
+    string? ImageUrl = null,
+    IReadOnlyCollection<string>? Tags = null);
 
 public sealed record ExternalLibrarySnapshot(
     string RequestedProfileId,

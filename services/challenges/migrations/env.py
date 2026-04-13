@@ -21,6 +21,8 @@ from src.models.base import BaseModel
 from src.models.tags import Tag
 from src.models.challenges import Challenge
 from src.models.games import Game
+from src.models.comments import ChallengeComment
+from src.models.reactions import ChallengeLike, ChallengeDislike
 
 target_metadata = BaseModel.metadata
 database_url = os.environ.get("MIGRATIONS_DB_URL", None)

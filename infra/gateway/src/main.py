@@ -10,6 +10,7 @@ from src.exceptions.exception_handlers import (
 )
 
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 from fastapi import FastAPI, HTTPException
@@ -35,6 +36,14 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(lifespan=app_lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # app.include_router(auth_router)
 app.include_router(main_router)

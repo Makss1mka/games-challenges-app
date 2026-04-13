@@ -7,6 +7,7 @@ import shutil
 import uuid
 import math
 import os
+import httpx
 
 from typing import Optional
 from fastapi import Request, UploadFile
@@ -26,8 +27,14 @@ from src.schemas.challenges import (
     ChallengeCreateRequestModel,
     ChallengeUpdateMainInfoRequestModel,
     ChallengeListResponseModel,
+    ChallengeCommentResponseModel,
+    ChallengeCommentUpdateRequestModel,
+    ChallengeCommentsListResponseModel,
+    ChallengeReactionResponseModel,
 )
 from src.models.challenges import Challenge
+from src.models.comments import ChallengeComment
+from src.models.reactions import ChallengeLike, ChallengeDislike
 from src.models.games import Game
 from src.utils.annotations.basic import SessionDep, UserContext
 from src.utils.enums import ChallengeContentBlockType, UserRole
@@ -38,6 +45,8 @@ ALLOWED_PICTURES_MIME_TYPES = {
     "image/jpeg": [".jpg", ".jpeg"],
     "image/png": [".png"],
 }
+
+GAMES_API_URL = os.environ.get("GAMES_API_URL", "http://games-api:8080")
 
 
 class ChallengesService:
@@ -86,25 +95,35 @@ class ChallengesService:
         
         challenge_id = uuid.uuid4()
 
-        try:
-            dir_path = f"./challenges_pics/{challenge_id}/"
-            os.makedirs(dir_path)
+        card_picture_url = schema.card_picture_url
+        if schema.card_picture:
+            try:
+                dir_path = f"./challenges_pics/{challenge_id}/"
+                os.makedirs(dir_path, exist_ok=True)
 
-            card_picture_filename = "card_picture." + schema.card_picture_format
+                card_picture_filename = "card_picture." + (schema.card_picture_format or "png")
 
-            with open(dir_path + card_picture_filename, "wb") as f:
-                f.write(schema.card_picture)
+                with open(dir_path + card_picture_filename, "wb") as f:
+                    f.write(schema.card_picture)
 
-            for block in schema.description:
-                if block.type != ChallengeContentBlockType.PICTURE: continue
+                card_picture_url = str(challenge_id) + "/" + card_picture_filename
 
-                filename = str(uuid.uuid4()) + "." + block.content.split(".")[1]
-                block.content = str(challenge_id) + "/" + filename
+                for block in schema.description:
+                    if block.type != ChallengeContentBlockType.PICTURE:
+                        continue
+                    if isinstance(block.content, str) and block.content.startswith(("http://", "https://")):
+                        continue
 
-                with open(dir_path + filename, "wb") as f:
-                    f.write(block.picture)
-        except Exception as e:
-            raise ChallengeContentFileException()
+                    filename = str(uuid.uuid4()) + "." + block.content.split(".")[1]
+                    block.content = str(challenge_id) + "/" + filename
+
+                    with open(dir_path + filename, "wb") as f:
+                        f.write(block.picture)
+            except Exception as e:
+                raise ChallengeContentFileException()
+        else:
+            if not card_picture_url:
+                raise ChallengeContentFileException()
 
         challenge = Challenge(
             id=challenge_id,
@@ -114,7 +133,7 @@ class ChallengesService:
             author_name=self._user.user_name,
             description=[block.model_dump(exclude={"picture"}) for block in schema.description],
             card_description=schema.card_description,
-            card_picture_url=str(challenge_id) + "/" + card_picture_filename,
+            card_picture_url=card_picture_url,
             tags=await self._add_tags(schema.tags),
         )
         
@@ -179,11 +198,222 @@ class ChallengesService:
         return "Profile picture changed successfully"
 
 
+    async def add_comment(
+        self,
+        challenge_id: uuid.UUID,
+        message: str,
+        screenshots: Optional[list[UploadFile]] = None
+    ) -> ChallengeCommentResponseModel:
+        if not self._user.user_id:
+            raise ChallengeAccessDeniedException()
+
+        challenge = await self._get_challenge(challenge_id)
+
+        attachments: list[str] = []
+        if screenshots:
+            dir_path = f"./challenges_pics/{challenge_id}/comments/{uuid.uuid4()}/"
+            os.makedirs(dir_path, exist_ok=True)
+            for file in screenshots:
+                if not file.filename:
+                    continue
+                file_name = os.path.basename(file.filename)
+                file_path = os.path.join(dir_path, file_name)
+                with open(file_path, "wb") as handle:
+                    handle.write(await file.read())
+                relative_path = file_path.replace("./challenges_pics/", "")
+                attachments.append(relative_path)
+
+        comment = ChallengeComment(
+            challenge_id=challenge_id,
+            user_id=self._user.user_id,
+            author_name=self._user.user_name or "User",
+            message=message,
+            attachments=attachments
+        )
+
+        challenge.comments_count += 1
+        self._session.add(comment)
+        await self._session.commit()
+
+        return ChallengeCommentResponseModel.model_validate(comment)
+
+
+    async def update_comment(
+        self,
+        challenge_id: uuid.UUID,
+        comment_id: uuid.UUID,
+        schema: ChallengeCommentUpdateRequestModel
+    ) -> ChallengeCommentResponseModel:
+        if not self._user.user_id:
+            raise ChallengeAccessDeniedException()
+
+        comment = (
+            await self._session.execute(
+                select(ChallengeComment)
+                .where(
+                    ChallengeComment.id == comment_id,
+                    ChallengeComment.challenge_id == challenge_id
+                )
+            )
+        ).scalar()
+
+        if not comment:
+            raise ChallengeNotExistsException()
+
+        if self._user.user_role != UserRole.ADMIN and comment.user_id != self._user.user_id:
+            raise ChallengeAccessDeniedException()
+
+        comment.message = schema.message
+        await self._session.commit()
+
+        return ChallengeCommentResponseModel.model_validate(comment)
+
+
+    async def delete_comment(
+        self,
+        challenge_id: uuid.UUID,
+        comment_id: uuid.UUID
+    ) -> str:
+        if not self._user.user_id:
+            raise ChallengeAccessDeniedException()
+
+        comment = (
+            await self._session.execute(
+                select(ChallengeComment)
+                .where(
+                    ChallengeComment.id == comment_id,
+                    ChallengeComment.challenge_id == challenge_id
+                )
+            )
+        ).scalar()
+
+        if not comment:
+            raise ChallengeNotExistsException()
+
+        if self._user.user_role != UserRole.ADMIN and comment.user_id != self._user.user_id:
+            raise ChallengeAccessDeniedException()
+
+        try:
+            if comment.attachments:
+                for path in comment.attachments:
+                    try:
+                        os.remove(os.path.join("./challenges_pics", path))
+                    except FileNotFoundError:
+                        pass
+        except Exception:
+            raise ChallengeContentFileException()
+
+        await self._session.delete(comment)
+        await self._session.commit()
+
+        return "Comment was successfully deleted"
+
+
+    async def list_comments(
+        self,
+        challenge_id: uuid.UUID,
+        page_size: int = 10,
+        page_num: int = 1
+    ) -> ChallengeCommentsListResponseModel:
+        count_query = (
+            select(func.count(ChallengeComment.id))
+            .where(ChallengeComment.challenge_id == challenge_id)
+        )
+        total_count = (await self._session.execute(count_query)).scalar() or 0
+        total_pages = math.ceil(total_count / page_size) if total_count > 0 else 1
+        page_num = max(1, min(page_num, total_pages)) if total_pages > 0 else 1
+        offset = (page_num - 1) * page_size
+
+        data_query = (
+            select(ChallengeComment)
+            .where(ChallengeComment.challenge_id == challenge_id)
+            .order_by(ChallengeComment.created_at.desc())
+            .limit(page_size)
+            .offset(offset)
+        )
+        result = await self._session.execute(data_query)
+        comments = result.scalars().all()
+
+        return ChallengeCommentsListResponseModel(
+            data=[ChallengeCommentResponseModel.model_validate(c) for c in comments],
+            current_page=page_num,
+            page_size=page_size,
+            total_pages=total_pages
+        )
+
+
+    async def react_to_challenge(self, challenge_id: uuid.UUID, reaction: str) -> ChallengeReactionResponseModel:
+        if not self._user.user_id:
+            raise ChallengeAccessDeniedException()
+
+        challenge = await self._get_challenge(challenge_id)
+        user_id = self._user.user_id
+
+        if reaction == "like":
+            existing_like = await self._session.execute(
+                select(ChallengeLike).where(
+                    ChallengeLike.challenge_id == challenge_id,
+                    ChallengeLike.user_id == user_id
+                )
+            )
+            like = existing_like.scalar()
+            existing_dislike = await self._session.execute(
+                select(ChallengeDislike).where(
+                    ChallengeDislike.challenge_id == challenge_id,
+                    ChallengeDislike.user_id == user_id
+                )
+            )
+            dislike = existing_dislike.scalar()
+
+            if like:
+                await self._session.delete(like)
+                challenge.likes_count = max(0, challenge.likes_count - 1)
+            else:
+                if dislike:
+                    await self._session.delete(dislike)
+                    challenge.dislikes_count = max(0, challenge.dislikes_count - 1)
+                self._session.add(ChallengeLike(challenge_id=challenge_id, user_id=user_id))
+                challenge.likes_count += 1
+
+        if reaction == "dislike":
+            existing_dislike = await self._session.execute(
+                select(ChallengeDislike).where(
+                    ChallengeDislike.challenge_id == challenge_id,
+                    ChallengeDislike.user_id == user_id
+                )
+            )
+            dislike = existing_dislike.scalar()
+            existing_like = await self._session.execute(
+                select(ChallengeLike).where(
+                    ChallengeLike.challenge_id == challenge_id,
+                    ChallengeLike.user_id == user_id
+                )
+            )
+            like = existing_like.scalar()
+
+            if dislike:
+                await self._session.delete(dislike)
+                challenge.dislikes_count = max(0, challenge.dislikes_count - 1)
+            else:
+                if like:
+                    await self._session.delete(like)
+                    challenge.likes_count = max(0, challenge.likes_count - 1)
+                self._session.add(ChallengeDislike(challenge_id=challenge_id, user_id=user_id))
+                challenge.dislikes_count += 1
+
+        await self._session.commit()
+        return ChallengeReactionResponseModel(
+            likes_count=challenge.likes_count,
+            dislikes_count=challenge.dislikes_count
+        )
+
+
     async def search_challenges(
         self, 
         key_str: Optional[str] = None, 
         tags: Optional[list[str]] = None, 
         game_id: Optional[uuid.UUID] = None,
+        user_id: Optional[uuid.UUID] = None,
         page_size: int = 10, 
         page_num: int = 1
     ) -> ChallengeListResponseModel:
@@ -201,6 +431,9 @@ class ChallengesService:
 
         if game_id:
             filters.append(Challenge.game_id == game_id)
+
+        if user_id:
+            filters.append(Challenge.user_id == user_id)
 
         if tags:
             filters.append(Challenge.tags.any(Tag.name.in_(tags)))
@@ -443,9 +676,32 @@ class ChallengesService:
         ).scalar()
 
         if not game:
-            raise GameNotExistsException()
+            fetched = await self._fetch_game_from_catalog(game_id)
+            if not fetched:
+                raise GameNotExistsException()
+
+            author_name = fetched.get("title") or str(game_id)
+            game = Game(
+                id=game_id,
+                name=fetched.get("title") or str(game_id),
+                author_name=author_name,
+            )
+            self._session.add(game)
+            await self._session.commit()
 
         return game
+
+    async def _fetch_game_from_catalog(self, game_id: uuid.UUID) -> Optional[dict]:
+        url = f"{GAMES_API_URL.rstrip('/')}/api/games/{game_id}"
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                response = await client.get(url)
+                if response.status_code == 404:
+                    return None
+                response.raise_for_status()
+                return response.json()
+        except Exception:
+            return None
 
 
     async def _add_tags(self, tags_names: list[str]) -> list[Tag]:

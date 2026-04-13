@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi.responses import FileResponse
 from src.exceptions.challenges import ChallengeAccessDeniedException, ChallengeFileIsDirectoryException, ChallengeFileNotFoundException, ChallengeInvalidFilePathException
 from src.middlewares.access_control import require_access
-from src.schemas.challenges import ChallengeChangeBlocksOrderRequestModel, ChallengeUpdateMainInfoRequestModel
+from src.schemas.challenges import ChallengeChangeBlocksOrderRequestModel, ChallengeUpdateMainInfoRequestModel, ChallengeCommentUpdateRequestModel
 from src.utils.annotations.services import (
     ChallengesServiceDep,
     ChallengeCreateRequestModelDep,
@@ -16,7 +16,7 @@ from src.utils.annotations.services import (
 from src.utils.enums import UserRole
 from src.utils.responses import CommonJSONResponse
 
-from fastapi import APIRouter, File, Request, Response, UploadFile, Query
+from fastapi import APIRouter, File, Request, Response, UploadFile, Query, Form
 from typing import Optional
 import logging
 import uuid
@@ -145,6 +145,7 @@ async def get_challenge(
     key_str: Optional[str] = Query(None),
     tags: Optional[list[str]] = Query(None),
     game_id: Optional[uuid.UUID] = Query(None),
+    user_id: Optional[uuid.UUID] = Query(None),
     page_size: int = Query(10, ge=1, le=100),
     page_num: int = Query(1, ge=1),
 ):
@@ -152,6 +153,7 @@ async def get_challenge(
         key_str=key_str,
         tags=tags,
         game_id=game_id,
+        user_id=user_id,
         page_size=page_size,
         page_num=page_num
     )
@@ -185,6 +187,120 @@ async def create_challenge(
     req: Request
 ):
     return await challenges_service.create_challenge(schema=schema)
+
+
+@challenges_router.post(
+    "/{challenge_id}/like",
+    response_class=CommonJSONResponse,
+)
+@require_access(
+    allowed_roles=[UserRole.USER, UserRole.ADMIN],
+    require_authentication=True
+)
+async def like_challenge(
+    challenge_id: uuid.UUID,
+    challenges_service: ChallengesServiceDep,
+    req: Request
+):
+    return await challenges_service.react_to_challenge(challenge_id=challenge_id, reaction="like")
+
+
+@challenges_router.post(
+    "/{challenge_id}/dislike",
+    response_class=CommonJSONResponse,
+)
+@require_access(
+    allowed_roles=[UserRole.USER, UserRole.ADMIN],
+    require_authentication=True
+)
+async def dislike_challenge(
+    challenge_id: uuid.UUID,
+    challenges_service: ChallengesServiceDep,
+    req: Request
+):
+    return await challenges_service.react_to_challenge(challenge_id=challenge_id, reaction="dislike")
+
+
+@challenges_router.get(
+    "/{challenge_id}/comments",
+    response_class=CommonJSONResponse,
+)
+async def list_comments(
+    challenge_id: uuid.UUID,
+    challenges_service: ChallengesServiceDep,
+    req: Request,
+    page_size: int = Query(10, ge=1, le=100),
+    page_num: int = Query(1, ge=1),
+):
+    return await challenges_service.list_comments(
+        challenge_id=challenge_id,
+        page_size=page_size,
+        page_num=page_num
+    )
+
+
+@challenges_router.post(
+    "/{challenge_id}/comments",
+    response_class=CommonJSONResponse,
+)
+@require_access(
+    allowed_roles=[UserRole.USER, UserRole.ADMIN],
+    require_authentication=True
+)
+async def add_comment(
+    challenge_id: uuid.UUID,
+    challenges_service: ChallengesServiceDep,
+    req: Request,
+    message: str = Form(),
+    screenshots: Optional[list[UploadFile]] = File(None),
+):
+    return await challenges_service.add_comment(
+        challenge_id=challenge_id,
+        message=message,
+        screenshots=screenshots
+    )
+
+
+@challenges_router.patch(
+    "/{challenge_id}/comments/{comment_id}",
+    response_class=CommonJSONResponse,
+)
+@require_access(
+    allowed_roles=[UserRole.USER, UserRole.ADMIN],
+    require_authentication=True
+)
+async def update_comment(
+    challenge_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    schema: ChallengeCommentUpdateRequestModel,
+    challenges_service: ChallengesServiceDep,
+    req: Request,
+):
+    return await challenges_service.update_comment(
+        challenge_id=challenge_id,
+        comment_id=comment_id,
+        schema=schema
+    )
+
+
+@challenges_router.delete(
+    "/{challenge_id}/comments/{comment_id}",
+    response_class=CommonJSONResponse,
+)
+@require_access(
+    allowed_roles=[UserRole.USER, UserRole.ADMIN],
+    require_authentication=True
+)
+async def delete_comment(
+    challenge_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    challenges_service: ChallengesServiceDep,
+    req: Request,
+):
+    return await challenges_service.delete_comment(
+        challenge_id=challenge_id,
+        comment_id=comment_id
+    )
 
 
 @challenges_router.patch(

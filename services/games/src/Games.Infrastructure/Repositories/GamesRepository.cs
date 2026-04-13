@@ -91,6 +91,12 @@ public sealed class GamesRepository(GamesDbContext dbContext) : IGamesRepository
         return dbContext.Games.AddAsync(game, cancellationToken).AsTask();
     }
 
+    public Task RemoveAsync(Game game, CancellationToken cancellationToken = default)
+    {
+        dbContext.Games.Remove(game);
+        return Task.CompletedTask;
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return dbContext.SaveChangesAsync(cancellationToken);

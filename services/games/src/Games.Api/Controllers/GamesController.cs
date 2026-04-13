@@ -43,6 +43,25 @@ public sealed class GamesController(GameService gameService) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
+    [Authorize]
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var removed = await gameService.DeleteAsync(id, cancellationToken);
+        return removed ? NoContent() : NotFound();
+    }
+
+    [Authorize]
+    [HttpPatch("{id:guid}")]
+    public async Task<ActionResult<GameDto>> Update(
+        Guid id,
+        UpdateGameRequest request,
+        CancellationToken cancellationToken)
+    {
+        var updated = await gameService.UpdateAsync(id, request, cancellationToken);
+        return updated is null ? NotFound() : Ok(updated);
+    }
+
     [HttpGet("tags")]
     public async Task<ActionResult<IReadOnlyCollection<TagDto>>> GetTags(
         [FromQuery] string? q,

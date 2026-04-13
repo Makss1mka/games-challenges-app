@@ -9,6 +9,7 @@ public sealed class Game
     public string? Developer { get; set; }
     public string? Publisher { get; set; }
     public DateOnly? ReleaseDate { get; set; }
+    public string? ImageUrl { get; set; }
 
     public ICollection<GameTag> GameTags { get; set; } = new List<GameTag>();
     public ICollection<GameExternalMapping> ExternalMappings { get; set; } = new List<GameExternalMapping>();

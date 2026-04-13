@@ -15,6 +15,12 @@ import re
 main_router = APIRouter()
 logger = logging.getLogger("main_router")
 
+DEFAULT_TIMEOUT_SECONDS = 10.0
+LONG_RUNNING_TIMEOUT_SECONDS = 120.0
+LONG_RUNNING_ROUTES = {
+    "/api/library/me/import/steam",
+}
+
 SERVICES_URLS = {
     "auth": "http://users-api:8080",
     "me": "http://users-api:8080",
@@ -34,7 +40,8 @@ AUTH_FREE_ROUTES = [
     ["GET", r"^/api/games/tags$"],
     ["GET", r"^/api/challenges/file/.+$"],
     ["GET", r"^/api/challenges/[0-9a-fA-F-]{36}$"],
-    ["GET", r"^/api/challenges/search$"]
+    ["GET", r"^/api/challenges/search$"],
+    ["GET", r"^/api/challenges/[0-9a-fA-F-]{36}/comments$"]
 ]
 
 
@@ -68,6 +75,12 @@ async def gateway_router(request: Request, path: str):
     target_url = f"{target_base_url}{full_path}"
     logger.debug(f"Target url {target_url}")
 
+    timeout_seconds = (
+        LONG_RUNNING_TIMEOUT_SECONDS
+        if full_path in LONG_RUNNING_ROUTES
+        else DEFAULT_TIMEOUT_SECONDS
+    )
+
     async with httpx.AsyncClient() as client:
         content = await request.body()
         params = request.query_params
@@ -79,7 +92,7 @@ async def gateway_router(request: Request, path: str):
                 headers=req_headers,
                 params=params,
                 content=content,
-                timeout=10.0
+                timeout=timeout_seconds
             )
             
             return Response(

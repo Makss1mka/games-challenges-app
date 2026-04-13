@@ -23,6 +23,21 @@ services:
     networks:
       - challenges-private
 
+  challenges-migrations:
+    build: .
+    container_name: challenges-migrations
+    working_dir: /app
+    command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+    env_file:
+      - .env
+      - ../../.env
+    depends_on:
+      challenges-db:
+        condition: service_healthy
+    networks:
+      - challenges-private
+    restart: "no"
+
   challenges-api:
     build: .
     container_name: challenges-api
@@ -34,12 +49,17 @@ services:
         condition: service_healthy
       challenges-redis:
         condition: service_healthy
+      challenges-migrations:
+        condition: service_completed_successfully
     networks:
       - backend
       - challenges-private
+    volumes:
+      - challenges-pics:/app/challenges_pics
 
 networks:
   challenges-private:
 
 volumes:
   challenge-db:
+  challenges-pics:

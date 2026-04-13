@@ -5,7 +5,8 @@ namespace Users.Application.Models;
 public sealed record RegisterRequest(
     string Username,
     string Email,
-    string Password);
+    string Password,
+    UserRole Role = UserRole.User);
 
 public sealed record LoginRequest(
     string Login,

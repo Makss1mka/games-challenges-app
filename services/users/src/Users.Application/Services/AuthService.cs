@@ -32,6 +32,9 @@ public sealed class AuthService(
         if (await usersRepository.GetByUsernameAsync(normalizedUsername, cancellationToken) is not null)
             throw new ConflictException("Username is already taken.");
 
+        if (!Enum.IsDefined(typeof(UserRole), request.Role))
+            throw new BadRequestException("User role is invalid.");
+
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -39,7 +42,7 @@ public sealed class AuthService(
             NormalizedUsername = normalizedUsername,
             Email = normalizedEmail,
             PasswordHash = passwordHasher.Hash(request.Password),
-            Role = UserRole.User,
+            Role = request.Role,
             Status = UserStatus.Active,
             CreatedAtUtc = DateTimeOffset.UtcNow,
         };

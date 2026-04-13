@@ -12,6 +12,7 @@ public sealed record GameDto(
     string? Developer,
     string? Publisher,
     DateOnly? ReleaseDate,
+    string? ImageUrl,
     IReadOnlyCollection<string> Tags);
 
 public sealed record CreateGameRequest(
@@ -21,6 +22,17 @@ public sealed record CreateGameRequest(
     string? Developer,
     string? Publisher,
     DateOnly? ReleaseDate,
+    string? ImageUrl,
+    IReadOnlyCollection<string>? Tags);
+
+public sealed record UpdateGameRequest(
+    string? Title,
+    string? Slug,
+    string? Description,
+    string? Developer,
+    string? Publisher,
+    DateOnly? ReleaseDate,
+    string? ImageUrl,
     IReadOnlyCollection<string>? Tags);
 
 public sealed record AddLibraryItemRequest(

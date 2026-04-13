@@ -37,6 +37,10 @@ namespace Games.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
                     b.Property<string>("Publisher")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");

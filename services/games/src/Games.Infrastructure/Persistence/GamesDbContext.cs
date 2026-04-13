@@ -25,6 +25,7 @@ public sealed class GamesDbContext(DbContextOptions<GamesDbContext> options) : D
             entity.Property(x => x.Description).HasMaxLength(4000);
             entity.Property(x => x.Developer).HasMaxLength(256);
             entity.Property(x => x.Publisher).HasMaxLength(256);
+            entity.Property(x => x.ImageUrl).HasMaxLength(1024);
 
             entity.HasIndex(x => x.Slug).IsUnique();
             entity.HasIndex(x => x.Title);

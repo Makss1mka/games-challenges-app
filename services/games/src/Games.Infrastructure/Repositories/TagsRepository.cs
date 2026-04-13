@@ -42,12 +42,17 @@ public sealed class TagsRepository(GamesDbContext dbContext) : ITagsRepository
         if (normalized.Length == 0)
             return Array.Empty<Tag>();
 
+        var local = dbContext.Tags.Local
+            .Where(x => normalized.Contains(x.Name))
+            .ToList();
+
         var existing = await dbContext.Tags
             .Where(x => normalized.Contains(x.Name))
             .ToListAsync(cancellationToken);
 
-        var existingNames = existing
+        var existingNames = local
             .Select(x => x.Name)
+            .Concat(existing.Select(x => x.Name))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var created = normalized
@@ -62,8 +67,11 @@ public sealed class TagsRepository(GamesDbContext dbContext) : ITagsRepository
         if (created.Length > 0)
             await dbContext.Tags.AddRangeAsync(created, cancellationToken);
 
-        return existing
+        return local
+            .Concat(existing)
             .Concat(created)
+            .GroupBy(static x => x.Id)
+            .Select(static group => group.First())
             .ToArray();
     }
 
