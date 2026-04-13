@@ -4,14 +4,14 @@ networks:
     driver: bridge
 
 include:
-  - infra/rabbitmq/docker-compose.yml
-  - infra/gateway/docker-compose.yml
-  - infra/nginx/docker-compose.yml
+  - infra/rabbitmq/docker-compose.yaml
+  - infra/gateway/docker-compose.yaml
+  #- infra/nginx/docker-compose.yaml
 
-  - services/users/docker-compose.yml
-  - services/games/docker-compose.yml
-  - services/challenges/docker-compose.yml
-  - services/social/docker-compose.yml
-  - services/recommendations/docker-compose.yml
+  - services/users/docker-compose.yaml
+  - services/games/docker-compose.yaml
+  - services/challenges/docker-compose.yaml
+  - services/social/docker-compose.yaml
+  #- services/recommendations/docker-compose.yaml
 
-  - frontend/docker-compose.yml
+  - frontend/docker-compose.yaml

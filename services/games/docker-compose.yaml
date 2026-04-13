@@ -22,9 +22,22 @@ services:
       - games-private
 
   games-migrations:
+    build:
+      context: ../../
+      dockerfile: services/games/Dockerfile
+      target: build
     image: games-api
     container_name: games-migrations
-    command: ["dotnet", "ef", "database", "update"]
+    working_dir: /src
+    command:
+      - dotnet
+      - ef
+      - database
+      - update
+      - --project
+      - services/games/src/Games.Infrastructure/Games.Infrastructure.csproj
+      - --startup-project
+      - services/games/src/Games.Api/Games.Api.csproj
     env_file:
       - .env
       - ../../.env
@@ -36,7 +49,9 @@ services:
     restart: "no"
 
   games-api:
-    build: .
+    build:
+      context: ../../
+      dockerfile: services/games/Dockerfile
     container_name: games-api
     env_file:
       - .env
@@ -52,5 +67,3 @@ services:
 
 networks:
   games-private:
-  backend:
-    external: true

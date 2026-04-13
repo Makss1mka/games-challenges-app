@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/games/">
+    <Project Path="services/games/src/Games.Api/Games.Api.csproj" Id="fbbeb644-9938-44f6-827b-00c135493d11" />
+    <Project Path="services/games/src/Games.Application/Games.Application.csproj" Id="0b0439a0-6d83-44df-8b9c-d69b8bc02e9b" />
+    <Project Path="services/games/src/Games.Domain/Games.Domain.csproj" Id="45016521-50a4-4637-916d-2572a431b7c4" />
+    <Project Path="services/games/src/Games.Infrastructure/Games.Infrastructure.csproj" Id="7610b60b-33d3-4c89-a2cc-917995eb10ab" />
+    <Project Path="services/games/src/Games.Tests/Games.Tests.csproj" Id="6cde9388-59b4-46cd-bf33-6bcc945cc262" />
+  </Folder>
+  <Folder Name="/shared/">
+    <Project Path="services/shared/Shared.BuildingBlocks/Shared.BuildingBlocks.csproj" Id="ad1e24c6-4abf-4e0c-93ee-155d6a756891" />
+    <Project Path="services/shared/Shared.Contracts/Shared.Contracts.csproj" Id="c1e3b308-af19-418d-b5a8-2158943554a3" />
+  </Folder>
+  <Folder Name="/users/">
+    <Project Path="services/users/src/Users.Api/Users.Api.csproj" Id="f493490d-79e7-452b-8c6b-f03f68027e64" />
+    <Project Path="services/users/src/Users.Application/Users.Application.csproj" Id="68b11f09-b909-4f1e-8a4a-5c5a95aa2271" />
+    <Project Path="services/users/src/Users.Domain/Users.Domain.csproj" Id="84974235-4a01-4f1c-8ffe-5c2ad62470ab" />
+    <Project Path="services/users/src/Users.Infrastructure/Users.Infrastructure.csproj" Id="68c105a4-be09-4742-8a15-bc5913a6f555" />
+    <Project Path="services/users/src/Users.Tests/Users.Tests.csproj" Id="bf32e1b3-a5b9-40cd-af31-bd35e11e759e" />
+  </Folder>
+</Solution>

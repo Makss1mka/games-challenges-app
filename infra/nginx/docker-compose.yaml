@@ -10,7 +10,3 @@ services:
       - gateway
     networks:
       - backend
-
-networks:
-  backend:
-    external: true

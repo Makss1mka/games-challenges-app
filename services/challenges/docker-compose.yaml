@@ -10,6 +10,8 @@ services:
       retries: 5
     networks:
       - challenges-private
+    volumes:
+      - challenge-db:/var/lib/postgresql/data 
 
   challenges-redis:
     image: redis:7
@@ -22,9 +24,10 @@ services:
       - challenges-private
 
   challenges-migrations:
-    image: challenges-api
+    build: .
     container_name: challenges-migrations
-    command: ["dotnet", "ef", "database", "update"]
+    working_dir: /app
+    command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
     env_file:
       - .env
       - ../../.env
@@ -42,15 +45,21 @@ services:
       - .env
       - ../../.env
     depends_on:
-      challenges-migrations:
-        condition: service_completed_successfully
+      challenges-db:
+        condition: service_healthy
       challenges-redis:
         condition: service_healthy
+      challenges-migrations:
+        condition: service_completed_successfully
     networks:
       - backend
       - challenges-private
+    volumes:
+      - challenges-pics:/app/challenges_pics
 
 networks:
   challenges-private:
-  backend:
-    external: true
+
+volumes:
+  challenge-db:
+  challenges-pics:
